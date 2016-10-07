@@ -1,3 +1,4 @@
+package prv
 
 import org.scalacheck._
 import org.scalacheck.Prop._
