@@ -61,7 +61,16 @@ object SW {
 //                               BSW
 //-------------------------------------------------------------------
 
-final case class SizeExceeded(invalidTill: DateTime) // FIXME: rework to include "recovery" phase...
+
+sealed trait ArbDateTime
+final case class BoundDateTime(dt: DateTime) extends ArbDateTime
+final case class UndefinedDateTime() extends ArbDateTime
+
+
+// FIXME: rework to include "recovery" phase...
+final case class SizeExceeded(invalidTill: DateTime)
+
+
 
 
 case class BSW private (maxSize: Int, sw: SW, invalidTill: Option[DateTime]) {
@@ -78,9 +87,12 @@ case class BSW private (maxSize: Int, sw: SW, invalidTill: Option[DateTime]) {
       }
     else {
       val (tnsw, delEl) = BSW.dropToSize(nsw, maxSize)(None)
-      val nInvTill = delEl match {
-        case Some((dt, _)) => dt + nsw.timeWindow
-        case None => new DateTime(0L)
+
+      val nInvTill = (delEl, invalidTill) match {
+        case (Some((dt, _)), Some(invTill)) => BSW.max(dt + nsw.timeWindow, invTill)
+        case (Some((dt, _)), None) => dt + nsw.timeWindow
+        case (None, Some(invTill)) => invTill
+        case (None, None) => new DateTime("9999-12-31")
       }
 
       (this.copy(sw = tnsw, invalidTill = Some(nInvTill)), Left(SizeExceeded(nInvTill)))
@@ -89,13 +101,14 @@ case class BSW private (maxSize: Int, sw: SW, invalidTill: Option[DateTime]) {
 
   def size: Int = sw.size
 
-  def reset: BSW = ??? //
-
-  // FIXME: private
+  def reset: BSW = BSW(this.size)
 }
 
 object BSW {
   def apply(maxSize: Int): BSW = BSW(maxSize, SW(), None)
+
+  // FIXME: this should be generic...
+  def max(dt1: DateTime, dt2: DateTime): DateTime = if (dt1.isAfter(dt2)) dt1 else dt2
 
   @tailrec
   private def dropToSize(sw: SW, size: Int)(mEl: Option[(DateTime, Double)]): (SW, Option[(DateTime, Double)]) =
@@ -202,24 +215,48 @@ object ScalaCheckTest extends Properties("SW") {
 
 
   def propSizeExceeded(bsw: BSW, dateTime: DateTime, value: Double): Prop = {
-    val (nbsw, ethCheck) = bsw.add(dateTime, value)
+    val (nbsw, eCheck) = bsw.add(dateTime, value)
+    println("CHK: " + eCheck)
 
     atLeastOne(
       "Size exceeded" |: (bsw.size == bsw.maxSize) ==> {
-        ethCheck match {
+        eCheck match {
           case Left(SizeExceeded(_)) => true
           case _ => false
         }
       },
-    "Size ok" |: bsw.size < bsw.maxSize ==> Prop.passed, // FIXME: elaborate
-    "Size above max" |: bsw.size > bsw.maxSize ==> Prop.falsified
+      "Size ok" |: bsw.size < bsw.maxSize ==> {
+        eCheck match {
+          case Right(_) => Prop(true)
+          case _ => Prop.falsified
+          //case Left(SizeExceeded(_)) => true // specify what... time conditions
+        }
+      },
+      "Size above max" |: bsw.size > bsw.maxSize ==> Prop.falsified
     )
   }
 
+  def propInvTillMonoIncr(bsw: BSW, dateTime: DateTime, value: Double): Prop = {
+    val (nbsw, eCheck) = bsw.add(dateTime, value)
+
+    "InvTill monotonous increase" |: {
+      (bsw.invalidTill, nbsw.invalidTill) match {
+        case (None, None) => true
+        case (None, Some(_)) => true
+        case (Some(_), None) => true
+        case (Some(invTill), Some(nInvTill)) => invTill <= nInvTill
+      }
+    }
+  }
+
+
   property("BSWprops") = forAll(genEvents(DateTime.now, new Duration(1000L * 10))) { ls =>
+    println("==============")
+
     val (_, xs) = ls.foldLeft((BSW(1), List[Prop]())) { case ((bsw, props), (dt, v)) =>
       val prop = all(
-        propSizeExceeded(bsw, dt, v)
+        propSizeExceeded(bsw, dt, v),
+        propInvTillMonoIncr(bsw, dt, v)
 //        propLimitCheck(bsw, dt, v),
 //        propLatestEventLast(bsw, dt, v),
 //        propMoveWindow(bsw, dt, v),
