@@ -9,9 +9,9 @@ import org.scalacheck._
 //                           SlidingWindow
 //-------------------------------------------------------------------
 
-case class SlidingWindow(limit: Double,
-                         timeWindow: Duration,
-                         heap: List[(DateTime, Double)] = List()) {
+case class SlidingWindow private (limit: Double,
+                                  timeWindow: Duration,
+                                  heap: List[(DateTime, Double)] = List()) {
 
   def add(dateTime: DateTime, value: Double): (SlidingWindow, Check) = {
     val boundary = latestEventTime match {

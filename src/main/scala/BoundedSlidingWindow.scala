@@ -12,7 +12,7 @@ import scala.annotation.tailrec
 //                        BoundedSlidingWindow
 //-------------------------------------------------------------------
 
-case class BoundedSlidingWindow private(maxSize: Int, sw: SlidingWindow, invalidTill: Option[DateTime]) {
+case class BoundedSlidingWindow private (maxSize: Int, sw: SlidingWindow, invalidTill: Option[DateTime]) {
 
   def add(dateTime: DateTime, value: Double): (BoundedSlidingWindow, Either[SizeExceeded, Check]) = {
     val (nsw, check) = sw.add(dateTime, value)
