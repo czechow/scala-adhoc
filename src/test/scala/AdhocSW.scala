@@ -1,3 +1,19 @@
+
+
+
+object sdfdsf {
+  val ml = (x: Int, y: Int) => (x * y, x / y)
+
+  def update(data: Int): Int => (Int, (Int, Int, Int)) =
+    { ml.curried(data)(_)          } andThen { case ((os, chk1)) =>
+      (ml(data, os), chk1)         } andThen { case ((os, chk2), chk1) =>
+      (ml(data, os), (chk1, chk2)) } andThen { case ((os, chk3), (chk1, chk2)) =>
+      (os, (chk1, chk2, chk3))
+    }
+
+}
+
+
 /*
 import com.github.nscala_time.time.Imports._
 import org.scalacheck.Prop.{AnyOperators, _}

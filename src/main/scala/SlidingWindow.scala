@@ -4,6 +4,14 @@ import com.github.nscala_time.time.Imports._
 import org.scalacheck.Prop.{AnyOperators, _}
 import org.scalacheck._
 
+//import scalaz.Heap
+//
+//trait Num[A] {
+//  def fromInteger(: A
+//  def +(that: A)
+//}
+
+
 
 //-------------------------------------------------------------------
 //                           SlidingWindow
