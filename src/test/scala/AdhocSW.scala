@@ -2,15 +2,32 @@
 
 
 object sdfdsf {
-  val ml = (x: Int, y: Int) => (x * y, x / y)
 
-  def update(data: Int): Int => (Int, (Int, Int, Int)) =
-    { ml.curried(data)(_)          } andThen { case ((os, chk1)) =>
-      (ml(data, os), chk1)         } andThen { case ((os, chk2), chk1) =>
-      (ml(data, os), (chk1, chk2)) } andThen { case ((os, chk3), (chk1, chk2)) =>
-      (os, (chk1, chk2, chk3))
+  def main(args: Array[String]): Unit = {
+    implicit class TupleOps[A](val x: A) {
+      def :+[C](c: C) = (x, c)
     }
 
+    implicit class Tuple2Ops[A, B](val x: (A, B)) {
+      def :+[C](c: C) = (x._1, x._2, c)
+    }
+
+    val ml = (x: Int, y: Int) => (x * y, x / y)
+
+    def update(data: Int): Int => (Int, (Int, Int, Int)) =
+      {ml.curried(data)(_)       } andThen { case ((os, chk)) =>
+      (ml(data, os), chk)        } andThen { case ((os, chk), tpl) =>
+      (ml(data, os), tpl :+ chk) } andThen { case ((os, chk), tpl) =>
+      (os, tpl :+ chk)
+    }
+
+    def update2(data: Int, osInit: Int): (Int, (Int, Int, Int)) = {
+      val (os1, chk1) = ml(data, osInit)
+      val (os2, chk2) = ml(data, os1)
+      val (os3, chk3) = ml(data, os2)
+      (os3, (chk1, chk2, chk3))
+    }
+  }
 }
 
 
