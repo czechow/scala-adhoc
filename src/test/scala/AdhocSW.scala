@@ -46,21 +46,23 @@ object AdhocSW {
     case _ => Left(s"Incorrect string in field $name")
   }
 
+  def posD(name: String)(d: Double): Either[String, Double] =
+    if (d >= 0d) Right(d)
+    else Left(s"Incorrect negative value [$d] in field [$name]")
+
   def long(name:String)(v: AnyRef): Either[String, Long] = ???
 
   def fromMM(mm: Map[String, AnyRef]): Either[String, (Option[String], Double, Int)] = for {
-    s <- validate(mm, "k1")(_ => v => Right(v.toString))()
-    d <- validateMand(mm, "k2")(double)()
+    s <- validate(mm, "k1")(_ => v => Right(v.toString))
+    d <- validateMand(mm, "k2")(double, posD)
+    z <- validateMand(mm, "k3")(double)
   } yield {
-    (s, d, 13)
+    (s, d, z.toInt)
   }
 
-  def mand[T](name: String)(op: Option[T]): Either[String, T] = op.toRight(s"Mand $name missing")
-
-
   def validate[T](mm: Map[String, AnyRef], name: String)
-                 (fc: String => AnyRef => Either[String, T])
-                 (fs: (String => T => Either[String, T]) *)
+                 (fc: String => AnyRef => Either[String, T],
+                  fs: (String => T => Either[String, T]) *)
   : Either[String, Option[T]] =
     mm.get(name) match {
       case Some(v) =>
@@ -69,14 +71,18 @@ object AdhocSW {
     }
 
   def validateMand[T](mm: Map[String, AnyRef], name: String)
-                     (fc: String => AnyRef => Either[String, T])
-                     (fs: (String => T => Either[String, T]) *)
-  : Either[String, T] = validate(mm, name)(fc)(fs: _*) flatMap mand(name)
+                     (fc: String => AnyRef => Either[String, T],
+                      fs: (String => T => Either[String, T]) *)
+  : Either[String, T] =
+    validate(mm, name)(fc, fs: _*) flatMap (x => x.toRight(s"Mand $name missing"))
 
   def main(args: Array[String]): Unit = {
-    val mm = Map[String, AnyRef]("k1" -> "Wania", "k2" -> Double.box(234d))
+    val mm = Map[String, AnyRef](
+      "k1" -> "Wania",
+      "k2" -> Double.box(-234d),
+      "k3" -> Double.box(13d)
+    )
     println(fromMM(mm))
   }
-
 }
 
