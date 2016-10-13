@@ -50,12 +50,25 @@ object AdhocSW {
     if (d >= 0d) Right(d)
     else Left(s"Incorrect negative value [$d] in field [$name]")
 
+  def nonNeg[T : Numeric](name: String)(v: T): Either[String, T] = {
+    val im = implicitly[Numeric[T]]
+    if (im.lt(v, im.zero)) Right(v)
+    else Left(s"Incorrect negative value [$v] in field [$name]")
+  }
+
+  def upLimit[T : Numeric](l: Int)(name: String)(v: T): Either[String, T] = {
+    val im = implicitly[Numeric[T]]
+    if (im.gt(im.fromInt(l), v)) Right(v)
+    else Left(s"Incorrect value [$v] in field [$name]: upper limit of [$l] exceeded")
+  }
+
+
   def long(name:String)(v: AnyRef): Either[String, Long] = ???
 
   def fromMM(mm: Map[String, AnyRef]): Either[String, (Option[String], Double, Int)] = for {
     s <- validate(mm, "k1")(_ => v => Right(v.toString))
-    d <- validateMand(mm, "k2")(double, posD)
-    z <- validateMand(mm, "k3")(double)
+    d <- validateMand(mm, "k2")(double, nonNeg[Double], upLimit[Double](10))
+    z <- validateMand(mm, "k3")(double, upLimit[Double](13))
   } yield {
     (s, d, z.toInt)
   }
@@ -79,7 +92,7 @@ object AdhocSW {
   def main(args: Array[String]): Unit = {
     val mm = Map[String, AnyRef](
       "k1" -> "Wania",
-      "k2" -> Double.box(-234d),
+      "k2" -> Double.box(234d),
       "k3" -> Double.box(13d)
     )
     println(fromMM(mm))
