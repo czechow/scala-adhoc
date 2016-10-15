@@ -1,101 +1,88 @@
+import Monad.OptionMonad
+import Monoid.IntMonoid
 
+//import scalaz.Foldable
 
-trait Show[A] {
-  def show(v: A): String
+//import scalaz._
+//import Scalaz._
+
+trait Monoid[A] {
+  def mappend(i1: A, i2: A): A
+  def mzero: A
 }
 
-case class Data()
-case class SomeOther(x: Int, y: String)
+object Monoid {
+  implicit object IntMonoid extends Monoid[Int] {
+    def mappend(i1: Int, i2: Int): Int = i1 + i2
+    def mzero: Int = 0
+  }
 
+  implicit object StringMonoid extends Monoid[String] {
+    def mappend(i1: String, i2: String): String = i1 + i2
+    def mzero: String = ""
+  }
+}
 
-case class SW[A : Numeric](size: Int) {
-  def add(elem: A): A = {
-    val im = implicitly[Numeric[A]]
-    im.plus(im.zero, elem)
+trait Foldable[F[_]] {
+  def foldLeft[A, B](xs: F[A])(z: B)(f: (B, A) => B): B
+}
+
+object Foldable {
+  implicit object ListFoldable extends Foldable[List] {
+    def foldLeft[A, B](xs: List[A])(z: B)(f: (B, A) => B): B = xs.foldLeft(z)(f)
+  }
+}
+
+trait Monad[F[_]] {
+  def unit[A](a: A): F[A]
+  def bind[A, B](ma: F[A])(f: A => F[B]): F[B]
+  def fmap[A, B](ma: F[A])(f: A => B): F[B] = bind(ma) { a => unit(f(a)) }
+}
+
+object Monad {
+  implicit object OptionMonad extends Monad[Option] {
+    def unit[A](a: A): Option[A] = Some(a)
+    def bind[A, B](ma: Option[A])(f: (A) => Option[B]): Option[B] = ma match {
+      case Some(a) => f(a)
+      case None => None
+    }
   }
 }
 
 
 object AdhocSW {
+//  import Monad.OptionMonad._
 
   implicit class RightBiasedEither[A, B](e: Either[A, B]) {
     def map[C](f: B => C): Either[A, C] = e.right.map(f)
     def flatMap[C](f: B => Either[A, C]): Either[A, C] = e.right.flatMap(f)
   }
 
-  implicit object DataShow extends Show[Data] {
-    def show(v: Data): String = "Data type, no contents"
+  def sum[A](l: List[A])(implicit m: Monoid[A]): A =
+    l.foldLeft(m.mzero) { (acc, x) => m.mappend(acc, x) }
+
+  def sum2[M[_], A](xs: M[A])(implicit m: Monoid[A], fl: Foldable[M]): A = {
+    fl.foldLeft(xs)(m.mzero)(m.mappend)
   }
 
-  implicit object SomeOtherShow extends Show[SomeOther] {
-    def show(v: SomeOther): String = s"X is ${v.x}, text is ${v.y}"
-  }
+//    xs.foldLeft(m.mzero) { (acc, x) => m.mappend(acc, x) }
 
-  def showMe[T : Show](d: T): Unit = {
-    val sh = implicitly[Show[T]]
-    println("Showing: " + sh.show(d))
-  }
-
-  def double(name: String)(v: AnyRef): Either[String, Double] = v match {
-    case d: java.lang.Double => Right(d.doubleValue())
-    case _ => Left(s"Incorrect double in field $name")
-  }
-
-  def string(name: String)(v: AnyRef): Either[String, String] = v match {
-    case s: String => Right(s)
-    case _ => Left(s"Incorrect string in field $name")
-  }
-
-  def posD(name: String)(d: Double): Either[String, Double] =
-    if (d >= 0d) Right(d)
-    else Left(s"Incorrect negative value [$d] in field [$name]")
-
-  def nonNeg[T : Numeric](name: String)(v: T): Either[String, T] = {
-    val im = implicitly[Numeric[T]]
-    if (im.lt(v, im.zero)) Right(v)
-    else Left(s"Incorrect negative value [$v] in field [$name]")
-  }
-
-  def upLimit[T : Numeric](l: Int)(name: String)(v: T): Either[String, T] = {
-    val im = implicitly[Numeric[T]]
-    if (im.gt(im.fromInt(l), v)) Right(v)
-    else Left(s"Incorrect value [$v] in field [$name]: upper limit of [$l] exceeded")
-  }
-
-
-  def long(name:String)(v: AnyRef): Either[String, Long] = ???
-
-  def fromMM(mm: Map[String, AnyRef]): Either[String, (Option[String], Double, Int)] = for {
-    s <- validate(mm, "k1")(_ => v => Right(v.toString))
-    d <- validateMand(mm, "k2")(double, nonNeg[Double], upLimit[Double](10))
-    z <- validateMand(mm, "k3")(double, upLimit[Double](13))
-  } yield {
-    (s, d, z.toInt)
-  }
-
-  def validate[T](mm: Map[String, AnyRef], name: String)
-                 (fc: String => AnyRef => Either[String, T],
-                  fs: (String => T => Either[String, T]) *)
-  : Either[String, Option[T]] =
-    mm.get(name) match {
-      case Some(v) =>
-        fs.foldLeft(fc(name)(v)) { (acc, f) => acc flatMap f(name) } map { r => Some(r) }
-      case None => Right(None)
-    }
-
-  def validateMand[T](mm: Map[String, AnyRef], name: String)
-                     (fc: String => AnyRef => Either[String, T],
-                      fs: (String => T => Either[String, T]) *)
-  : Either[String, T] =
-    validate(mm, name)(fc, fs: _*) flatMap (x => x.toRight(s"Mand $name missing"))
 
   def main(args: Array[String]): Unit = {
-    val mm = Map[String, AnyRef](
-      "k1" -> "Wania",
-      "k2" -> Double.box(234d),
-      "k3" -> Double.box(13d)
-    )
-    println(fromMM(mm))
+
+    val i = sum2(List(1, 2, 3 ,4))
+    println("Sum is " + i)
+
+
+    val s = sum2(List("Ania", "Bania", "Tom"))
+    println("Sum is " + s)
+
+    val x = OptionMonad.unit("TEST")
+    val y = OptionMonad.unit(13)
+
+    println(s"$x, $y")
+
+
   }
 }
 
