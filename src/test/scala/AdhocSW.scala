@@ -1,6 +1,6 @@
-import Monad.OptionMonad
-import Monoid.IntMonoid
-
+//import Monoid.IntMonoid
+//import Monad.OptionMonad
+import Monad._
 //import scalaz.Foldable
 
 //import scalaz._
@@ -37,6 +37,7 @@ trait Monad[F[_]] {
   def unit[A](a: A): F[A]
   def bind[A, B](ma: F[A])(f: A => F[B]): F[B]
   def fmap[A, B](ma: F[A])(f: A => B): F[B] = bind(ma) { a => unit(f(a)) }
+  def >>=[A, B](ma: F[A])(f: A => F[B]): F[B] = bind(ma)(f)
 }
 
 object Monad {
@@ -47,11 +48,17 @@ object Monad {
       case None => None
     }
   }
+
+  implicit class MonadOps[F[_], A](ma: F[A]) {
+    def >>=[B](f: A => F[B])(implicit m: Monad[F]): F[B] = m.>>=(ma)(f)
+    def fmap[B](f: A => B)(implicit m: Monad[F]): F[B] = m.fmap(ma)(f)
+    def `<$>`[B](f: A => B)(implicit m: Monad[F]): F[B] = m.fmap(ma)(f)
+  }
 }
 
 
 object AdhocSW {
-//  import Monad.OptionMonad._
+  import Monad.OptionMonad._
 
   implicit class RightBiasedEither[A, B](e: Either[A, B]) {
     def map[C](f: B => C): Either[A, C] = e.right.map(f)
@@ -74,14 +81,19 @@ object AdhocSW {
     println("Sum is " + i)
 
 
-    val s = sum2(List("Ania", "Bania", "Tom"))
+    val s = sum2(List("Tom", "Jerry", "Don"))
     println("Sum is " + s)
 
-    val x = OptionMonad.unit("TEST")
-    val y = OptionMonad.unit(13)
+    val x = unit("TEST")
+    val y = unit(13)
 
-    println(s"$x, $y")
+    val z = bind(x) { x => Some(x + "-" + x)}
 
+    val zzz = z >>= { x => Some(x) }
+    val z2 = z fmap { x => x }
+    val z3 = z `<$>` { x => x }
+
+    println(s"$x, $y, $z, $zzz, $z2, $z3")
 
   }
 }
