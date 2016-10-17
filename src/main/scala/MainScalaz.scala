@@ -1,4 +1,3 @@
-import scala.util.Random
 
 import scalaz._
 import Scalaz._
@@ -14,6 +13,9 @@ object MainScalaz {
     println("Up and running")
 
     f()
+
+    val x = List(1, 2) |+| List(3, 4)
+    println("x is " + x)
   }
 
   def f(): Unit = {
