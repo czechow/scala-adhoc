@@ -76,7 +76,7 @@ object AdhocSW {
 
 
   def main(args: Array[String]): Unit = {
-
+/*
     val i = sum2(List(1, 2, 3 ,4))
     println("Sum is " + i)
 
@@ -94,7 +94,35 @@ object AdhocSW {
     val z3 = z `<$>` { x => x }
 
     println(s"$x, $y, $z, $zzz, $z2, $z3")
+*/
 
+//    val res = getStream.foldLeft(0) { (_, x) => x }
+
+//    println("res = " + res)
+
+    val start = System.currentTimeMillis()
+//    var last = 0
+//    for (i <- getStream) {
+//      last = i
+//    }
+
+//    val last = getStream.foldLeft(0L) { (_, x) => x }
+
+    var i = 0
+    var last = 0
+    while (i < 1e8.toLong) {
+      last = i
+      i = i + 1
+    }
+
+    val stop = System.currentTimeMillis()
+
+    println("last = " + last)
+    println("Took: " + (stop - start) + " ms")
   }
+
+  def getStream = Stream.range[Long](1, 1e8.toLong)
+
+
 }
 
