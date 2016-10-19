@@ -1,6 +1,11 @@
 //import Monoid.IntMonoid
 //import Monad.OptionMonad
+import CacheLimit.{Check, LimitExceeded, WithinLimit}
 import Monad._
+import org.joda.time.DateTime
+
+//import scalaz.Heap
+//import scalaz.Heap.Empty
 //import scalaz.Foldable
 
 //import scalaz._
@@ -96,33 +101,76 @@ object AdhocSW {
     println(s"$x, $y, $z, $zzz, $z2, $z3")
 */
 
-//    val res = getStream.foldLeft(0) { (_, x) => x }
+    val x = read(DateTime.now, 1024)(kdbReadFn("MyProps"))
 
-//    println("res = " + res)
-
-    val start = System.currentTimeMillis()
-//    var last = 0
-//    for (i <- getStream) {
-//      last = i
-//    }
-
-//    val last = getStream.foldLeft(0L) { (_, x) => x }
-
-    var i = 0
-    var last = 0
-    while (i < 1e8.toLong) {
-      last = i
-      i = i + 1
-    }
-
-    val stop = System.currentTimeMillis()
-
-    println("last = " + last)
-    println("Took: " + (stop - start) + " ms")
+    println("x: " + x)
   }
 
   def getStream = Stream.range[Long](1, 1e8.toLong)
 
+  type Result = (String, Int)
+  type ErrMsg = String
+
+  def read(dateTime: DateTime, maxSize: Int)
+          (rdFn: (DateTime) => List[String]): Either[ErrMsg, List[Result]] = {
+    val ls = rdFn(dateTime)
+    if (ls.size > maxSize) Left("Failed => size too large")
+    else {
+      Right(ls map { x => (x, x.length) })
+    }
+  }
+
+  def kdbReadFn(kdbProps: String): DateTime => List[String] = {
+    val conn = 34
+
+    x: DateTime => {
+      val z = conn.equals(342)
+      // read all stuff...
+      List("Tom", "Jerry")
+    }
+  }
 
 }
 
+
+final case class Date private (date: DateTime)
+
+object CacheLimit {
+  sealed trait Check
+  final case class WithinLimit() extends Check
+  final case class LimitExceeded(v: Double) extends Check
+}
+
+final case class CacheLimit(limit: Double, data: Map[String, Double]) {
+  def add(secId: String, qty: Double): (CacheLimit, Check) = {
+    val currVal = data.getOrElse(secId, 0d)
+    val nVal = currVal + qty
+    val check = if (nVal <= limit) WithinLimit() else LimitExceeded(nVal)
+
+    (this.copy(data = data.updated(secId, nVal)), check)
+  }
+
+  def size = data.size
+}
+
+final case class BoundedCacheLimit(maxSize: Int, limit: Double, cl: CacheLimit) {
+
+  def add(secId: String, qty: Double): (BoundedCacheLimit, Either[String, Check]) = {
+    if (cl.size >= maxSize) (this, Left("Max security count reached"))
+    else {
+      val (nCl, check) = cl.add(secId, qty)
+      (this.copy(cl = nCl), Right(check))
+    }
+  }
+}
+
+// what can you tell
+
+final case class DailyLimit(limit: Double, maxDays: Int, data: Map[Date, BoundedCacheLimit]) {
+  def add(date: Date, secId: String, qty: Double): (Boolean, DailyLimit) = {
+    //data.getOrElse(date, )
+    // first add the stuff to the set
+
+    ???
+  }
+}
