@@ -141,9 +141,11 @@ object CacheLimit {
   sealed trait Check
   final case class WithinLimit() extends Check
   final case class LimitExceeded(v: Double) extends Check
+
+  def apply(limit: Double): CacheLimit = CacheLimit(limit, Map.empty)
 }
 
-final case class CacheLimit(limit: Double, data: Map[String, Double]) {
+final case class CacheLimit private (limit: Double, data: Map[String, Double]) {
   def add(secId: String, qty: Double): (CacheLimit, Check) = {
     val currVal = data.getOrElse(secId, 0d)
     val nVal = currVal + qty
@@ -155,7 +157,13 @@ final case class CacheLimit(limit: Double, data: Map[String, Double]) {
   def size = data.size
 }
 
-final case class BoundedCacheLimit(maxSize: Int, limit: Double, cl: CacheLimit) {
+object BoundedCacheLimit {
+  def apply(maxSize: Int, limit: Double): BoundedCacheLimit =
+    BoundedCacheLimit(maxSize, CacheLimit(limit))
+
+}
+
+final case class BoundedCacheLimit private (maxSize: Int, cl: CacheLimit) {
 
   def add(secId: String, qty: Double): (BoundedCacheLimit, Either[String, Check]) = {
     if (cl.size >= maxSize) (this, Left("Max security count reached"))
@@ -166,21 +174,23 @@ final case class BoundedCacheLimit(maxSize: Int, limit: Double, cl: CacheLimit) 
   }
 }
 
-// what can you tell
-// Check => Limit check result
-// Sec limit exceeded
-// Day window exceeded
-
 object BoundedDailyLimit {
   sealed trait Result
   final case class CheckResult(check: CacheLimit.Check) extends Result
   final case class SecLimitExceeded(l: Int) extends Result
   final case class DateRangeExceeded(dMin: Date, dMax: Date) extends Result
+
+  def apply(maxSize: Int, limit: Double) =
+    BoundedCacheLimit(maxSize, CacheLimit(limit))
 }
 
 final case class BoundedDailyLimit(limit: Double, maxDays: Int, data: SortedMap[Date, BoundedCacheLimit]) {
   def add(date: Date, secId: String, qty: Double)
   : (BoundedDailyLimit.Result, BoundedDailyLimit) = {
+    if (data.isEmpty) {
+      val bcl = BoundedCacheLimit(128, limit)
+    }
+
     val x = data.max // this may not be ok
 
     //data.getOrElse(date, )
