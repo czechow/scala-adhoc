@@ -4,6 +4,8 @@ import CacheLimit.{Check, LimitExceeded, WithinLimit}
 import Monad._
 import org.joda.time.DateTime
 
+import scala.collection.SortedMap
+
 //import scalaz.Heap
 //import scalaz.Heap.Empty
 //import scalaz.Foldable
@@ -165,9 +167,22 @@ final case class BoundedCacheLimit(maxSize: Int, limit: Double, cl: CacheLimit) 
 }
 
 // what can you tell
+// Check => Limit check result
+// Sec limit exceeded
+// Day window exceeded
 
-final case class DailyLimit(limit: Double, maxDays: Int, data: Map[Date, BoundedCacheLimit]) {
-  def add(date: Date, secId: String, qty: Double): (Boolean, DailyLimit) = {
+object BoundedDailyLimit {
+  sealed trait Result
+  final case class CheckResult(check: CacheLimit.Check) extends Result
+  final case class SecLimitExceeded(l: Int) extends Result
+  final case class DateRangeExceeded(dMin: Date, dMax: Date) extends Result
+}
+
+final case class BoundedDailyLimit(limit: Double, maxDays: Int, data: SortedMap[Date, BoundedCacheLimit]) {
+  def add(date: Date, secId: String, qty: Double)
+  : (BoundedDailyLimit.Result, BoundedDailyLimit) = {
+    val x = data.max // this may not be ok
+
     //data.getOrElse(date, )
     // first add the stuff to the set
 
