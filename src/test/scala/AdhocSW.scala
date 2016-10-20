@@ -162,6 +162,7 @@ object BoundedCacheLimit {
   def apply(maxSize: Int, limit: Double): BoundedCacheLimit =
     BoundedCacheLimit(maxSize, CacheLimit(limit))
 
+  // FIXME ADT here...
 }
 
 final case class BoundedCacheLimit private (maxSize: Int, cl: CacheLimit) {
@@ -197,8 +198,8 @@ final case class BoundedDailyLimit(limit: Double, maxDays: Int, data: SortedMap[
       case None => date
     }
 
-    val minDate = Date(maxDate.date.minusDays(maxDays)) // FIXME: DST safe??/
-    val nData = data.updated(date, nBcl) filter { case (dt, _) => ! dt.date.isBefore(minDate.date) } // Should be short
+    val minDate = Date(maxDate.date.minusDays(maxDays - 1)) // FIXME: DST safe??/
+    val nData = data.updated(date, nBcl) dropWhile { case (dt, _) => dt.date.isBefore(minDate.date) }
 
     (nData.get(date), dec) match {
       case (Some(_), Right(check)) => (CheckResult(check), this.copy(data = nData))
