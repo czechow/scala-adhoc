@@ -1,5 +1,6 @@
 //import Monoid.IntMonoid
 //import Monad.OptionMonad
+import BoundedDailyLimit.{CheckResult, DateRangeExceeded, SecLimitExceeded}
 import CacheLimit.{Check, LimitExceeded, WithinLimit}
 import Monad._
 import org.joda.time.DateTime
@@ -187,15 +188,22 @@ object BoundedDailyLimit {
 final case class BoundedDailyLimit(limit: Double, maxDays: Int, data: SortedMap[Date, BoundedCacheLimit]) {
   def add(date: Date, secId: String, qty: Double)
   : (BoundedDailyLimit.Result, BoundedDailyLimit) = {
-    if (data.isEmpty) {
-      val bcl = BoundedCacheLimit(128, limit)
+
+    val bcl = data.getOrElse(date, BoundedCacheLimit(128, limit))
+    val (nBcl, dec) = bcl.add(secId, qty)
+
+    val maxDate = data.lastOption match {
+      case Some((md, _)) => if (md.date.isAfter(date.date)) md else date
+      case None => date
     }
 
-    val x = data.max // this may not be ok
+    val minDate = Date(maxDate.date.minusDays(maxDays)) // FIXME: DST safe??/
+    val nData = data.updated(date, nBcl) filter { case (dt, _) => ! dt.date.isBefore(minDate.date) } // Should be short
 
-    //data.getOrElse(date, )
-    // first add the stuff to the set
-
-    ???
+    (nData.get(date), dec) match {
+      case (Some(_), Right(check)) => (CheckResult(check), this.copy(data = nData))
+      case (Some(_), Left(errMsg)) => (SecLimitExceeded(1313), this.copy(data = nData)) // FIXME
+      case (None, _) => (DateRangeExceeded(minDate, maxDate), this)
+    }
   }
 }
