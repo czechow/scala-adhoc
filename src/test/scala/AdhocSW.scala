@@ -2,6 +2,7 @@
 //import Monad.OptionMonad
 import BoundedDailyLimit.{CheckResult, DateRangeExceeded, SecLimitExceeded}
 import CacheLimit.{Check, LimitExceeded, WithinLimit}
+import Input.InputMsaOps
 import Monad._
 import org.joda.time.DateTime
 
@@ -65,9 +66,35 @@ object Monad {
 }
 
 
-object AdhocSW {
-  import Monad.OptionMonad._
+trait MsaOps {
+  def toMsaMap[A]: Map[String, AnyRef]
+  def fromMsaMap[A](m: Map[String, AnyRef]): A
+}
 
+final case class Input(id: String, v: Int)
+
+object Input {
+  implicit class InputMsaOps(input: Input) extends MsaOps {
+    def toMsaMap[A]: Map[String, AnyRef] = ???
+    def fromMsaMap[A](m: Map[String, AnyRef]): A = ???
+  }
+
+  implicit object InputMsaOps {
+    def fromMsaMap[A](m: Map[String, AnyRef]): A = ???
+  }
+}
+
+object tst {
+  import Input.InputMsaOps._
+  def x(): Unit = {
+    val input = Input("id", 42)
+    input.toMsaMap
+    val u = fromMsaMap[Input](Map[String, String])
+    ()
+  }
+}
+
+object AdhocSW {
   implicit class RightBiasedEither[A, B](e: Either[A, B]) {
     def map[C](f: B => C): Either[A, C] = e.right.map(f)
     def flatMap[C](f: B => Either[A, C]): Either[A, C] = e.right.flatMap(f)
